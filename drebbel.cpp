@@ -32,16 +32,21 @@ class Entity
 protected:
     int x_coord;
     int y_coord;
+    int parallax_depth;
     sf::Texture texture;
     sf::Sprite sprite;
 
 public:
     Entity(const std::string& image, const int x_pos, const int y_pos);
+    virtual ~Entity() = 0;
     virtual void move(int x_coord, int y_coord);
     sf::Sprite& get_sprite();
+    int get_parallax_depth() const;
+    void set_parallax_depth(int depth);
 };
 
 Entity::Entity(const std::string& image, const int x_pos, const int y_pos)
+    : parallax_depth(1)
 {
     load_sprite(texture, image, sprite);
     sprite.setPosition(x_pos, y_pos);
@@ -49,9 +54,23 @@ Entity::Entity(const std::string& image, const int x_pos, const int y_pos)
     y_coord = y_pos;
 }
 
+Entity::~Entity()
+{
+}
+
 void Entity::move(int x_coord, int y_coord)
 {
     sprite.move(sf::Vector2f(x_coord, y_coord));
+}
+
+int Entity::get_parallax_depth() const
+{
+    return parallax_depth;
+}
+
+void Entity::set_parallax_depth(int depth)
+{
+    parallax_depth = depth;
 }
 
 sf::Sprite& Entity::get_sprite()
@@ -102,7 +121,7 @@ void World::move(const int x_coord, const int y_coord)
 {
     for (const auto& entity : entities)
     {
-        entity->move(x_coord, y_coord);
+        entity->move(x_coord / entity->get_parallax_depth(), y_coord);
     }
 }
 
@@ -146,10 +165,14 @@ int main()
         Local::window_x_res / 2 - Local::window_x_res * 0.1,
         Local::window_y_res / 2);
 
-    auto iceberg = std::make_unique<Mountain>("images/iceberg.png", 100, 300);
+    auto iceberg_fg = std::make_unique<Mountain>("images/iceberg_fg.png", 100, 300);
 
+    auto iceberg_bg = std::make_unique<Mountain>("images/iceberg_bg.png", 500, 200);
+    iceberg_bg->set_parallax_depth(3);
+
+    world.add_entity(std::move(iceberg_bg));
+    world.add_entity(std::move(iceberg_fg));
     world.add_entity(std::move(sub));
-    world.add_entity(std::move(iceberg));
 
     while (window.isOpen())
     {
