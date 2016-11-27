@@ -1,0 +1,4 @@
+[*] Create parallax layers
+[ ] Enable collision detection
+[ ] Animate moving objects
+
