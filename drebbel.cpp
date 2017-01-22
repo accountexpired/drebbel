@@ -117,7 +117,7 @@ void World::move(const int x_coord, const int y_coord)
         {
             if (entity != collision_candidate && entity->get_parallax_depth() == collision_candidate->get_parallax_depth())
             {
-                if (detect_collision(entity->get_sprite(), collision_candidate->get_sprite(), 16))
+                if (detect_collision(entity->get_sprite(), collision_candidate->get_sprite(), 1))
                 {
                     std::cout << "Collision!" << std::endl;
                 }
@@ -218,11 +218,16 @@ bool detect_collision(const sf::Sprite& sprite_1, const sf::Sprite& sprite_2, sf
     // Do the two objects' rectangles intersect?
     if (sprite_1.getGlobalBounds().intersects(sprite_2.getGlobalBounds(), intersection))
     {
+        if (alpha_limit == 0)
+        {
+            return true;
+        }
+
         sf::IntRect sprite_1_sub_rect = sprite_1.getTextureRect();
         sf::IntRect sprite_2_sub_rect = sprite_2.getTextureRect();
 
         sf::Uint8* mask_1 = bitmasks.get_mask(sprite_1.getTexture());
-        sf::Uint8* mask_2 = bitmasks.get_mask(sprite_1.getTexture());
+        sf::Uint8* mask_2 = bitmasks.get_mask(sprite_2.getTexture());
 
         // Do the pixels within the colliding rectangles intersect?
         for (int i = intersection.left; i < intersection.left + intersection.width; i++)
@@ -239,10 +244,10 @@ bool detect_collision(const sf::Sprite& sprite_1, const sf::Sprite& sprite_2, sf
                     // Are pixels within sprite's subrect?
                     if (bitmasks.get_pixel(mask_1, sprite_1.getTexture(),
                                            static_cast<int>(sprite_1_vec.x) + sprite_1_sub_rect.left,
-                                           static_cast<int>(sprite_1_vec.y) + sprite_1_sub_rect.top) < alpha_limit &&
+                                           static_cast<int>(sprite_1_vec.y) + sprite_1_sub_rect.top) > alpha_limit &&
                         bitmasks.get_pixel(mask_2, sprite_2.getTexture(),
                                            static_cast<int>(sprite_2_vec.x) + sprite_2_sub_rect.left,
-                                           static_cast<int>(sprite_2_vec.y) + sprite_2_sub_rect.top) < alpha_limit)
+                                           static_cast<int>(sprite_2_vec.y) + sprite_2_sub_rect.top) > alpha_limit)
                     {
                         return true;
                     }
