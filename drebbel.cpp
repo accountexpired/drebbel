@@ -21,9 +21,10 @@ protected:
     int y_coord;
     int parallax_depth;
     sf::Sprite sprite;
+    sf::Texture texture;
 
 public:
-    Entity(const sf::Texture& texture, const int x_pos, const int y_pos);
+    Entity(std::unique_ptr<sf::Texture> t, const int x_pos, const int y_pos);
     virtual ~Entity() = 0;
     virtual void move(int x_coord, int y_coord);
     sf::Sprite& get_sprite();
@@ -31,10 +32,12 @@ public:
     void set_parallax_depth(int depth);
 };
 
-Entity::Entity(const sf::Texture& texture, const int x_pos, const int y_pos)
+Entity::Entity(std::unique_ptr<sf::Texture> t, const int x_pos, const int y_pos)
     : parallax_depth(1)
 {
+    texture = *t;
     sprite.setTexture(texture);
+    //sprite.setTextureRect(sf::IntRect(10, 10, 32, 32));
     sprite.setPosition(x_pos, y_pos);
     x_coord = x_pos;
     y_coord = y_pos;
@@ -126,7 +129,7 @@ void World::move(const int x_coord, const int y_coord)
     }
 }
 
-void handle_input(sf::Event& event, sf::RenderWindow& window, World& world)
+void handle_input(sf::Event& event, sf::RenderWindow& window, std::unique_ptr<World>& world)
 {
     if (event.type == sf::Event::Closed)
     {
@@ -137,19 +140,19 @@ void handle_input(sf::Event& event, sf::RenderWindow& window, World& world)
     {
         if (event.key.code == sf::Keyboard::Left)
         {
-            world.move(10, 0);
+            world->move(10, 0);
         }
         else if (event.key.code == sf::Keyboard::Right)
         {
-            world.move(-10, 0);
+            world->move(-10, 0);
         }
         else if (event.key.code == sf::Keyboard::Up)
         {
-            world.move(0, 10);
+            world->move(0, 10);
         }
         else if (event.key.code == sf::Keyboard::Down)
         {
-            world.move(0, -10);
+            world->move(0, -10);
         }
     }
 }
@@ -258,49 +261,51 @@ bool detect_collision(const sf::Sprite& sprite_1, const sf::Sprite& sprite_2, sf
     return false;
 }
 
+std::unique_ptr<World> create_ocean()
+{
+    auto world = std::make_unique<World>();
+
+    auto sub_tex = std::make_unique<sf::Texture>();
+    sub_tex->loadFromFile("images/submarine.png");
+
+    auto iceberg_near_tex = std::make_unique<sf::Texture>();
+    iceberg_near_tex->loadFromFile("images/iceberg_fg.png");
+
+    auto iceberg_far_tex = std::make_unique<sf::Texture>();
+    iceberg_far_tex->loadFromFile("images/iceberg_bg.png");
+
+    // Position the submarine a slightly left of the center of the window.
+    auto sub = std::make_unique<Submarine>(
+        std::move(sub_tex),
+        Local::window_x_res / 2 - Local::window_x_res * 0.1,
+        Local::window_y_res / 2);
+
+    auto iceberg_fg = std::make_unique<Mountain>(std::move(iceberg_near_tex), 100, 300);
+
+    auto iceberg_bg = std::make_unique<Mountain>(std::move(iceberg_far_tex), 500, 200);
+    iceberg_bg->set_parallax_depth(3);
+ 
+    world->add_entity(std::move(iceberg_bg));
+    world->add_entity(std::move(iceberg_fg));
+    world->add_entity(std::move(sub));
+
+    return std::move(world);
+}
+
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(Local::window_x_res, Local::window_y_res), "Drebbel");
 
-    World world;
-
-    sf::Texture sub_tex;
-    sub_tex.loadFromFile("images/submarine.png");
-
-    sf::Texture iceberg_near_tex;
-    iceberg_near_tex.loadFromFile("images/iceberg_fg.png");
-
-    sf::Texture iceberg_far_tex;
-    iceberg_far_tex.loadFromFile("images/iceberg_bg.png");
-
-    // Position the submarine a slightly left of the center of the window.
-    auto sub = std::make_unique<Submarine>(
-        sub_tex,
-        Local::window_x_res / 2 - Local::window_x_res * 0.1,
-        Local::window_y_res / 2);
-
-    auto iceberg_fg = std::make_unique<Mountain>(iceberg_near_tex, 100, 300);
-
-    auto iceberg_bg = std::make_unique<Mountain>(iceberg_far_tex, 500, 200);
-    iceberg_bg->set_parallax_depth(3);
-
-    auto iceberg_temp = std::make_unique<Mountain>(iceberg_far_tex, 300, 200);
-    iceberg_temp->set_parallax_depth(4);
-
-    world.add_entity(std::move(iceberg_temp));
-    world.add_entity(std::move(iceberg_bg));
-    world.add_entity(std::move(iceberg_fg));
-    world.add_entity(std::move(sub));
+    auto ocean = create_ocean();
 
     while (window.isOpen())
     {
         sf::Event event;
         while (window.pollEvent(event))
         {
-            handle_input(event, window, world);
-
+            handle_input(event, window, ocean);
             window.clear(sf::Color::Blue);
-            world.draw_entities(window);
+            ocean->draw_entities(window);
             window.display();
         }
     }
